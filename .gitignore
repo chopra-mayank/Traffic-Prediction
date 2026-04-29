@@ -1,0 +1,36 @@
+# Project .gitignore
+# Keep common archives ignored
+archive.zip
+
+# Probe counts and generated geojson data
+probe_counts/
+probe_counts/geojson/
+geojson/
+
+# Weekly statistics outputs
+weekday_stats/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Virtualenv / environment
+venv/
+.venv/
+env/
+
+# Environment files
+.env
+.env.*
+
+# Database
+*.db
+
+# Frontend / Node
+frontend/node_modules/
+dist/
+build/
+
+# OS
+.DS_Store
+

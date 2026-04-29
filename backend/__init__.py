@@ -1,0 +1,1 @@
+"""Smart traffic backend package."""
