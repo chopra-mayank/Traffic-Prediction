@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Dev artifacts
+*.db
+*.sqlite
+.env
+.env.*
+
+# Git / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Docs & notebooks (not needed at runtime)
+notebooks/
+scripts/
+*.md
+*.pdf
+*.docx
+
+# Test files
+tests/

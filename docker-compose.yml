@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY:-}
+      - FRONTEND_ORIGIN=http://localhost:80
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist the SQLite DB across restarts
+      - traffic_db:/app/traffic_app.db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # Relative URL — nginx proxies /api/ to backend
+        VITE_API_BASE_URL: /api/v1
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  traffic_db:
