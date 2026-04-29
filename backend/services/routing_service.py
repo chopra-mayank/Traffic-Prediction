@@ -9,6 +9,14 @@ from .emission_service import calc_emissions
 from .weather_service import get_weather_penalty
 
 
+def _speed_to_congestion(speed_kmh: float) -> str:
+    if speed_kmh >= 35:
+        return "low"
+    if speed_kmh >= 20:
+        return "medium"
+    return "high"
+
+
 class RoutingService:
     def __init__(self) -> None:
         self._headers = {"User-Agent": APP_USER_AGENT}
@@ -69,7 +77,7 @@ class RoutingService:
                     "distance_km": round(distance_km, 2),
                     "travel_time_min": round(adjusted_minutes, 2),
                     "co2_grams": round(co2, 2),
-                    "congestion_level": congestion_level,
+                    "congestion_level": _speed_to_congestion(avg_speed),
                 }
             )
 

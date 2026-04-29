@@ -1,57 +1,73 @@
-function normalize(value) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
-}
+import { useEffect, useRef, useState } from "react";
 
-function findSuggestion(name, suggestions) {
-  const normalized = normalize(name);
-  const match = suggestions.find((item) => normalize(item.name) === normalized);
-  return match ? { label: match.name, lat: match.lat, lng: match.lng } : null;
-}
+function LocationInput({ label, value, onChange, suggestions, onSearch, showError }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
 
-function CoordinateInput({ label, value, onChange, invalid, suggestions, onSearch }) {
+  const invalid = value.label.trim() !== "" && (value.lat === "" || value.lng === "");
+
+  // filter suggestions by current input
+  const filtered = value.label.trim()
+    ? suggestions
+        .filter((s) => s.name.toLowerCase().includes(value.label.toLowerCase()))
+        .slice(0, 7)
+    : suggestions.slice(0, 7);
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
   return (
-    <div className="field-group">
-      <label className="field">
-        <span>{label} name</span>
-        <input
-          list={`${label}-locations`}
-          value={value.label}
-          onChange={(event) => {
-            const key = event.target.value;
-            onSearch(key);
-            const suggestion = findSuggestion(key, suggestions);
-            if (suggestion) {
-              onChange(suggestion);
-              return;
-            }
-            onChange({ label: key, lat: "", lng: "" });
-          }}
-        />
-        <datalist id={`${label}-locations`}>
-          {suggestions.map((item) => (
-            <option key={`${label}-${item.name}-${item.lat}-${item.lng}`} value={item.name} />
+    <div className="form-group" ref={wrapRef}>
+      <label className="form-label">{label}</label>
+      <input
+        className={`form-input${showError && invalid ? " has-error" : ""}`}
+        value={value.label}
+        placeholder={`Search ${label.toLowerCase()} in Bengaluru…`}
+        autoComplete="off"
+        onChange={(e) => {
+          const v = e.target.value;
+          onSearch(v);
+          onChange({ label: v, lat: "", lng: "" });
+          setOpen(true);
+        }}
+        onFocus={() => {
+          if (value.label) onSearch(value.label);
+          setOpen(true);
+        }}
+      />
+      {value.lat !== "" && value.lng !== "" && (
+        <span className="coord-tag">
+          {Number(value.lat).toFixed(4)}, {Number(value.lng).toFixed(4)}
+        </span>
+      )}
+      {open && filtered.length > 0 && (
+        <ul className="autocomplete-list">
+          {filtered.map((s) => (
+            <li
+              key={`${s.name}-${s.lat}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onChange({ label: s.name, lat: s.lat, lng: s.lng });
+                setOpen(false);
+              }}
+            >
+              {s.name}
+            </li>
           ))}
-        </datalist>
-        {invalid ? <small className="field-error">Enter any Bengaluru place name or valid latitude/longitude.</small> : null}
-      </label>
-      <label className="field">
-        <span>Latitude</span>
-        <input
-          type="number"
-          step="0.0001"
-          value={value.lat}
-          onChange={(event) => onChange({ ...value, lat: event.target.value === "" ? "" : Number(event.target.value) })}
-        />
-      </label>
-      <label className="field">
-        <span>Longitude</span>
-        <input
-          type="number"
-          step="0.0001"
-          value={value.lng}
-          onChange={(event) => onChange({ ...value, lng: event.target.value === "" ? "" : Number(event.target.value) })}
-        />
-      </label>
+        </ul>
+      )}
+      {showError && invalid && (
+        <small className="field-error">
+          Select a location from the list, or try a different Bengaluru area name.
+        </small>
+      )}
     </div>
   );
 }
@@ -67,62 +83,60 @@ export default function SearchPanel({
   onOptimizeChange,
   onSubmit,
   loading,
-  invalidOrigin,
-  invalidDestination,
   originSuggestions,
   destinationSuggestions,
   onOriginSearch,
   onDestinationSearch,
+  submitAttempted,
 }) {
   return (
-    <section className="panel glass">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">Trip planner</p>
-          <h2>Find the best Bangalore route</h2>
-        </div>
-        <p className="muted">Fastest, shortest, or greenest with traffic and weather awareness.</p>
-      </div>
-
-      <CoordinateInput
+    <div className="card">
+      <p className="section-label">Trip planner</p>
+      <LocationInput
         label="Origin"
         value={origin}
         onChange={onOriginChange}
-        invalid={invalidOrigin}
         suggestions={originSuggestions}
         onSearch={onOriginSearch}
+        showError={submitAttempted}
       />
-      <CoordinateInput
+      <LocationInput
         label="Destination"
         value={destination}
         onChange={onDestinationChange}
-        invalid={invalidDestination}
         suggestions={destinationSuggestions}
         onSearch={onDestinationSearch}
+        showError={submitAttempted}
       />
-
-      <div className="field-row">
-        <label className="field">
-          <span>Optimization goal</span>
-          <select value={optimizeFor} onChange={(event) => onOptimizeChange(event.target.value)}>
+      <div className="form-row">
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Optimize for</label>
+          <select
+            className="form-select"
+            value={optimizeFor}
+            onChange={(e) => onOptimizeChange(e.target.value)}
+          >
             <option value="time">Fastest</option>
-            <option value="distance">Shortest distance</option>
+            <option value="distance">Shortest</option>
             <option value="eco">Greenest</option>
           </select>
-        </label>
-        <label className="field">
-          <span>Vehicle type</span>
-          <select value={vehicleType} onChange={(event) => onVehicleChange(event.target.value)}>
+        </div>
+        <div className="form-group" style={{ marginBottom: 0 }}>
+          <label className="form-label">Vehicle</label>
+          <select
+            className="form-select"
+            value={vehicleType}
+            onChange={(e) => onVehicleChange(e.target.value)}
+          >
             <option value="car">Car</option>
             <option value="bike">Bike</option>
             <option value="truck">Truck</option>
           </select>
-        </label>
+        </div>
       </div>
-
-      <button type="button" className="primary-button" onClick={onSubmit} disabled={loading}>
-        {loading ? "Calculating..." : "Calculate route"}
+      <button type="button" className="submit-btn" onClick={onSubmit} disabled={loading}>
+        {loading ? "Calculating…" : "Find best route"}
       </button>
-    </section>
+    </div>
   );
 }

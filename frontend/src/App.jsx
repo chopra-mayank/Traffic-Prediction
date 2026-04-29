@@ -22,10 +22,11 @@ export default function App() {
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(false);
   const [rerouteMessage, setRerouteMessage] = useState("");
-  const [theme, setTheme] = useState(() => localStorage.getItem("traffic-theme") || "light");
   const [inputError, setInputError] = useState("");
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [originSuggestions, setOriginSuggestions] = useState([]);
   const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+  const [theme, setTheme] = useState(() => localStorage.getItem("traffic-theme") || "light");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -33,12 +34,11 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    async function loadDefaults() {
-      const places = await fetchPlaces();
+    fetchHealth().then(setHealth).catch(() => {});
+    fetchPlaces().then((places) => {
       setOriginSuggestions(places);
       setDestinationSuggestions(places);
-    }
-    loadDefaults();
+    }).catch(() => {});
   }, []);
 
   const routePayload = useMemo(
@@ -59,8 +59,9 @@ export default function App() {
   );
 
   async function loadDashboard() {
+    setSubmitAttempted(true);
     if (!origin.label.trim() || !destination.label.trim()) {
-      setInputError("Enter both an origin and a destination in Bengaluru.");
+      setInputError("Enter both an origin and a destination.");
       return;
     }
     setInputError("");
@@ -69,22 +70,25 @@ export default function App() {
       const [healthData, routeData, predictData] = await Promise.all([
         fetchHealth(),
         fetchOptimalRoutes(routePayload),
-        fetchAreaPrediction(origin.label, new Date().getHours(), new Date().getDay() === 0 ? 6 : new Date().getDay() - 1, vehicleType),
+        fetchAreaPrediction(
+          origin.label,
+          new Date().getHours(),
+          new Date().getDay() === 0 ? 6 : new Date().getDay() - 1,
+          vehicleType,
+        ),
       ]);
       setHealth(healthData);
       setRoutes(routeData.routes);
-      setSelectedRouteIndex(routeData.best_route_index);
+      setSelectedRouteIndex(routeData.best_route_index ?? 0);
       setWeather(routeData.weather);
       setPrediction(predictData);
-      if (routeData.resolved_origin) {
-        setOrigin(routeData.resolved_origin);
-      }
-      if (routeData.resolved_destination) {
-        setDestination(routeData.resolved_destination);
-      }
+      if (routeData.resolved_origin) setOrigin(routeData.resolved_origin);
+      if (routeData.resolved_destination) setDestination(routeData.resolved_destination);
       setRerouteMessage(routeData.reroute_message || "");
     } catch (error) {
-      setInputError(error?.response?.data?.detail || "Could not calculate the route for the selected Bengaluru locations.");
+      setInputError(
+        error?.response?.data?.detail || "Could not calculate route. Check the locations and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -92,13 +96,13 @@ export default function App() {
 
   async function searchOrigin(query) {
     if (!query.trim()) return;
-    const places = await fetchPlaces(query);
+    const places = await fetchPlaces(query).catch(() => []);
     setOriginSuggestions(places);
   }
 
   async function searchDestination(query) {
     if (!query.trim()) return;
-    const places = await fetchPlaces(query);
+    const places = await fetchPlaces(query).catch(() => []);
     setDestinationSuggestions(places);
   }
 
@@ -112,33 +116,41 @@ export default function App() {
     }
   }, 30000, true);
 
-  return (
-    <main className="app-shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">Entry-level capstone</p>
-          <h1>Smart Traffic Prediction and Route Optimization</h1>
-          <p className="hero-copy">
-            Localhost dashboard with route comparison, traffic prediction, weather-aware rerouting,
-            eco scoring, and vehicle-specific recommendations.
-          </p>
-        </div>
-        <div className="hero-stats glass">
-          <span>API: {health?.status || "not checked"}</span>
-          <span>Model: {health?.artifact_loaded ? "Colab export loaded" : "fallback demo mode"}</span>
-          <span>Polling: every 30 seconds</span>
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme((current) => (current === "light" ? "dark" : "light"))}
-          >
-            {theme === "light" ? "Dark mode" : "Light mode"}
-          </button>
-        </div>
-      </section>
+  const predVolume = prediction?.predicted_traffic_volume;
+  const displayVolume =
+    predVolume != null ? Math.abs(Math.round(predVolume)).toLocaleString() : null;
 
-      <div className="layout">
-        <div className="left-column">
+  return (
+    <div className="app">
+      {/* ── Sidebar ── */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="app-brand">
+            <div className="brand-icon">🗺️</div>
+            <div>
+              <div className="brand-name">Traffic Optimizer</div>
+              <div className="brand-sub">Bengaluru Route Intelligence</div>
+            </div>
+          </div>
+          <div className="sidebar-meta">
+            <span className={`status-pill${health?.status !== "ok" ? " offline" : ""}`}>
+              {health?.status === "ok" ? "API connected" : "API offline"}
+            </span>
+            {health?.artifact_loaded && (
+              <span className="status-pill">Model ready</span>
+            )}
+            <span className="meta-spacer" />
+            <button
+              type="button"
+              className="theme-btn"
+              onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+            >
+              {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+            </button>
+          </div>
+        </div>
+
+        <div className="sidebar-body">
           <SearchPanel
             origin={origin}
             destination={destination}
@@ -150,60 +162,72 @@ export default function App() {
             onOptimizeChange={setOptimizeFor}
             onSubmit={loadDashboard}
             loading={loading}
-            invalidOrigin={origin.label.trim() !== "" && origin.lat === "" && origin.lng === ""}
-            invalidDestination={destination.label.trim() !== "" && destination.lat === "" && destination.lng === ""}
             originSuggestions={originSuggestions}
             destinationSuggestions={destinationSuggestions}
             onOriginSearch={searchOrigin}
             onDestinationSearch={searchDestination}
+            submitAttempted={submitAttempted}
           />
-          {inputError ? <section className="panel glass input-error-banner">{inputError}</section> : null}
+
+          {inputError && <div className="error-banner">{inputError}</div>}
+
           <WeatherBadge weather={weather} />
-          {prediction ? (
-            <section className="panel glass">
-              <div className="panel-heading">
-                <div>
-                  <p className="eyebrow">Traffic prediction</p>
-                  <h2>{prediction.requested_location || prediction.area_name}</h2>
-                </div>
-                <span className={`pill congestion-${prediction.congestion_bucket}`}>
+
+          {prediction && (
+            <div className="card">
+              <p className="section-label">Traffic prediction</p>
+              <div className="pred-header">
+                <span className="pred-name">
+                  {prediction.requested_location || prediction.area_name}
+                </span>
+                <span className={`pill pill-${prediction.congestion_bucket}`}>
                   {prediction.congestion_bucket}
                 </span>
               </div>
-              <div className="route-grid">
-                <span>Volume: {prediction.predicted_traffic_volume}</span>
-                <span>Speed: {prediction.predicted_average_speed} km/h</span>
-                <span>Model: {prediction.model_source}</span>
+              <div className="pred-stats">
+                <span>⚡ {prediction.predicted_average_speed} km/h avg</span>
+                {displayVolume && <span>🚗 ~{displayVolume} veh/hr</span>}
+                <span style={{ gridColumn: "1 / -1", fontSize: "0.72rem", opacity: 0.6 }}>
+                  Source: {prediction.model_source}
+                </span>
               </div>
-            </section>
-          ) : null}
-          <section className="routes-stack">
-            {routes.map((route, index) => (
-              <RouteCard
-                key={route.route_index}
-                route={route}
-                selected={index === selectedRouteIndex}
-                onSelect={() => setSelectedRouteIndex(index)}
-              />
-            ))}
-          </section>
-        </div>
+            </div>
+          )}
 
-        <div className="right-column">
-          <MapView
-            origin={origin}
-            destination={destination}
-            routes={routes}
-            selectedRouteIndex={selectedRouteIndex}
-          />
+          {routes.length > 0 && (
+            <div>
+              <p className="section-label" style={{ marginBottom: 8 }}>
+                {routes.length} routes found — click to select
+              </p>
+              <div className="route-list">
+                {routes.map((route, index) => (
+                  <RouteCard
+                    key={route.route_index}
+                    route={route}
+                    selected={index === selectedRouteIndex}
+                    onSelect={() => setSelectedRouteIndex(index)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      </aside>
+
+      {/* ── Map ── */}
+      <MapView
+        origin={origin}
+        destination={destination}
+        routes={routes}
+        selectedRouteIndex={selectedRouteIndex}
+        onSelectRoute={setSelectedRouteIndex}
+      />
 
       <RerouteAlert
         message={rerouteMessage}
-        onAccept={() => setSelectedRouteIndex(routes.findIndex((route) => route.recommended) || 0)}
+        onAccept={() => setSelectedRouteIndex(routes.findIndex((r) => r.recommended) || 0)}
         onDismiss={() => setRerouteMessage("")}
       />
-    </main>
+    </div>
   );
 }
