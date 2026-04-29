@@ -8,18 +8,15 @@ from statistics import mean
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-RAW_DIR = BASE_DIR / "data" / "raw"
-PROCESSED_DIR = BASE_DIR / "data" / "processed"
+BANGALORE_DIR = BASE_DIR / "data" / "bangalore"
+RAW_DIR = BANGALORE_DIR / "raw"
+PROCESSED_DIR = BANGALORE_DIR / "processed"
 
 
 def _find_bangalore_csv() -> Path:
-    candidates = [
-        RAW_DIR / "Banglore_traffic_Dataset.csv",
-        BASE_DIR / "Banglore_traffic_Dataset.csv",
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
+    candidate = RAW_DIR / "Banglore_traffic_Dataset.csv"
+    if candidate.exists():
+        return candidate
     raise FileNotFoundError("Banglore_traffic_Dataset.csv not found")
 
 

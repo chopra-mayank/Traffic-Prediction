@@ -1,14 +1,10 @@
 # Project .gitignore
 # Keep common archives ignored
-archive.zip
+*.zip
 
-# Probe counts and generated geojson data
-probe_counts/
-probe_counts/geojson/
-geojson/
-
-# Weekly statistics outputs
-weekday_stats/
+# Data files (large / generated)
+data/bangalore/geojson/probe_counts/
+data/bangalore/metrics/
 
 # Python artifacts
 __pycache__/

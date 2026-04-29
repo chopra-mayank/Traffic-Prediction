@@ -6,8 +6,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
-RAW_DIR = DATA_DIR / "raw"
-PROCESSED_DIR = DATA_DIR / "processed"
+BANGALORE_DIR = DATA_DIR / "bangalore"
+RAW_DIR = BANGALORE_DIR / "raw"
+PROCESSED_DIR = BANGALORE_DIR / "processed"
+GEOJSON_DIR = BANGALORE_DIR / "geojson"
+METRICS_DIR = BANGALORE_DIR / "metrics"
 MODEL_DIR = BASE_DIR / "backend" / "saved_models"
 DB_PATH = BASE_DIR / "traffic_app.db"
 
@@ -26,10 +29,4 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
 
 BANGALORE_DATA_CANDIDATES = [
     RAW_DIR / "Banglore_traffic_Dataset.csv",
-    BASE_DIR / "Banglore_traffic_Dataset.csv",
-]
-
-DELHI_TIME_DATA_CANDIDATES = [
-    RAW_DIR / "2024_week_day_time_city.csv",
-    BASE_DIR / "weekday_stats" / "2024_week_day_time_city.csv",
 ]
